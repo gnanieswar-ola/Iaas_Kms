@@ -1,0 +1,7 @@
+---
+- hosts: k8s_cluster
+  become: true
+  tasks:
+    - name: Install required Python OpenShift packages/libraries
+      include_role:
+        name: openshift

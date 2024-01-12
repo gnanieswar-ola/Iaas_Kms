@@ -1,0 +1,32 @@
+- name: Set KUBECONFIG environment variable
+  ansible.builtin.shell: export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+  become: yes
+  become_user: root
+  when: inventory_hostname in groups['masters']
+
+- name: Install Nvidia GPU Operator using Helm on master nodes
+  become: yes
+  become_user: root
+  shell: |
+    sudo chmod 644 /etc/rancher/rke2/rke2.yaml
+    export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+    echo $KUBECONFIG
+  when: inventory_hostname in groups['masters']
+
+- name: Check if Nvidia GPU Operator is already installed
+  shell: helm --kubeconfig /etc/rancher/rke2/rke2.yaml list -n gpu-operator | grep -c gpu-operator
+  register: nvidia_helm_list_output
+  ignore_errors: true
+  when: inventory_hostname in groups['masters']
+
+- name: Add Nvidia Helm repository and install Nvidia GPU Operator on master nodes (if not already installed)
+  become: yes
+  become_user: root
+  shell: |
+    helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
+    helm repo update
+    helm install --wait --generate-name -n gpu-operator --create-namespace --kubeconfig /etc/rancher/rke2/rke2.yaml nvidia/gpu-operator
+  when:
+    - inventory_hostname in groups['masters']
+    - nvidia_helm_list_output.stdout == "0"
+

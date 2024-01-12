@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: kms
+  name: kms
+  namespace: kms-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kms
+  template:
+    metadata:
+      labels:
+        app: kms
+    spec:
+      containers:
+      - env:
+        - name: MONGODB_URL
+          value: mongodb://localhost:27017/
+        # - name: MMSURL
+        #  value: http://mms.default.svc:8080
+        image: gnanieswar195/rke2:latest
+        imagePullPolicy: Always
+        name: kms
+        ports:
+        - containerPort: 5000
+          name: http
+        volumeMounts:
+        - name: kms-volume
+          mountPath: /kms-volumemount #kms volume mount
+      restartPolicy: Always
+      volumes:
+      - name: kms-volume
+        persistentVolumeClaim:
+          claimName: kms-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kms
+  namespace: kms-dev
+  labels:
+    app: kms
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 5000
+    name: http
+  selector:
+    app: kms
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kms
+  namespace: kms-dev
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /api/cluster/create
+        pathType: Prefix
+        backend:
+          service:
+            name: kms
+            port:
+              number: 5000
+

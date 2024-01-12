@@ -1,0 +1,24 @@
+- name: Add Longhorn Helm repository
+  become: yes
+  become_user: root
+  shell: |
+    helm repo add longhorn https://charts.longhorn.io
+    helm repo update
+  register: helm_repo_output
+  when: inventory_hostname in groups['masters']
+
+- name: Check if Longhorn is already installed
+  shell: helm --kubeconfig /etc/rancher/rke2/rke2.yaml list -n longhorn-system | grep -c longhorn
+  register: helm_list_output
+  ignore_errors: true
+  when: inventory_hostname in groups['masters']
+
+- name: Install Longhorn using Helm (if not already installed)
+  become: yes
+  become_user: root
+  shell: |
+    helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --kubeconfig /etc/rancher/rke2/rke2.yaml --version 1.5.3
+  when:
+    - inventory_hostname in groups['masters']
+    - helm_list_output.stdout == "0"
+
